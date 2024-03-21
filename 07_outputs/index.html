@@ -34,180 +34,414 @@
 
 <h4>Assignment: Minimum Viable Product for Final Project</h4>
 
-As a reminder, the pieces that were to make up my final project consisted of:
+My final project is going to be a "drawing machine" of sorts, that scans objects in 3D and translates them to 2D coordinates it can draw. Particularly I'm interested in translating things to curvilinear coordinates (such that they appear to be projected on a lens or sphere).
 
-1. An electronic circuit wiring up macro keys and a program key to an Arduino
-2. An interface between the Arduino and a computer that would allow the Arduino to
-send and recieve sequences of key presses
-3. Coding functionality to be able to assign key sequences to the various macro keys,
-using the program key
-4. An enclosure / housing to contain all the electronics, with a port to connect to
-a computer (or, optionally, Bluetooth / wireless functionality)
-5. Ideally, two rotary encoders for non-binary inputs
-6. Ideally, an LCD / OLED screen to display macro outputs for debugging etc.
-7. Ideally, a toggle switch to choose between separate profiles for the keys.
+The way the machine will work is by having an arm with an ultrasonic sensor sweep across the x and y planes recording it's position at each step while the sensor itself records the z direction in front of it. I decided in class that the movement along the x and y axes ought to be controlled using stepper motors, and I'd already played around enough with the ultrasonic sensor to have a decent idea of how to use it. 
 
-For my MVP, I wanted to tackle items 1 and 3 of this list: figuring out the code
-functionality that would allow me to program the macro keys. Since I didn't yet
-know how to get key presses from a connected computer, I decided to make dummy buttons
-in my Arduino circuit to treat like keyboard keys. Each button was connected to one
-channel of an RGB LED, such that I had a red button, a green button, and a blue button.
-The buttons were connected to ground on one side and Arduino digital pins on the other,
-which were set to `INPUT_PULLUP` mode so I could check when the buttons were pressed.
-I added two more buttons to be my program key and a single macro button, then
-started working on the code.
+The main thing I was concerned about was writing code that would allow the machine to know where the sensor was at any given point and to (after completeing a full scan from an inital (0,0) to (Max_x, Max_y)) return three arrays with x, y, and z coordinates throughout the scan. Over the course of the spring break I came up with some code that would hopefully do just that. 
+
+A really nifty thing I stumbled upon in the lab was a broken 3D printer which I happily claimed the scraps of for my project. The things I salvaged from it were the stepper motors (which there were like 4 of) and their appropriate wiring (which would have been a real pain to strip and keep track of on my own), and the tracks, which I didn't end up using for my mvp, but I do intend to incorporate or at least use the design of for the finished project. (The 3D printer is already a multi-axis stepper motor system, so reusing as much of it as possible is a huge W). 
 
 <pre><code style="background-color: #2d2b33;">
-  // pins to read input buttons
-  int r_button = 10;
-  int g_button = 11;
-  int b_button = 12;
+ #include <AccelStepper.h>
+
+// Define the number of steps per revolution for each motor
+#define STEPS_PER_REV 200
+
+// Define the pins connected to the stepper motor drivers
+#define X_STEP_PIN 13
+#define X_DIR_PIN 12
+#define Y_STEP_PIN 4
+#define Y_DIR_PIN 5
+
+// Define the distance to move along each axis for one sweep
+#define X_SWEEP_DISTANCE 200
+#define Y_SWEEP_DISTANCE 1  
+
+// Define initial position
+#define INITIAL_X_POS 0
+#define INITIAL_Y_POS 0
+
+// Define ultrasonic sensor pins
+#define TRIGGER_PIN 6
+#define ECHO_PIN 7
+
+// Initialize the stepper motors
+AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
+AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
+
+// Initialize position variables
+int xPos = INITIAL_X_POS;
+int yPos = INITIAL_Y_POS;
+
+
+void setup() {
+  // Set up the ultrasonic sensor pins
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
   
-  // pins to control LED
-  int r_out = 5;
-  int g_out = 6;
-  int b_out = 7;
+  Serial.begin(9600);
 
-  ...
+  // Set the maximum speed and acceleration for each motor
+  stepperX.setMaxSpeed(100); // Adjust as needed
+  stepperX.setAcceleration(100); // Adjust as needed
+  stepperY.setMaxSpeed(100); // Adjust as needed
+  stepperY.setAcceleration(100); // Adjust as needed
+}
 
-  // in setup function:
-  pinMode(r_button, INPUT_PULLUP);
-  pinMode(g_button, INPUT_PULLUP);
-  pinMode(b_button, INPUT_PULLUP);
+void loop() {
 
-  ...
+  // Sweep along the x-axis
+  stepperX.moveTo(X_SWEEP_DISTANCE);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos++;
+   
 
-  // in loop function:
-  // if any input buttons pressed, light up with LED
-  // with the appropriate color
-  if (digitalRead(r_button) < 1) {
-    digitalWrite(r_out, HIGH);
-  } else {
-    digitalWrite(r_out, LOW);
+  // Move down a small increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+  // Sweep along the x-axis in the opposite direction
+  stepperX.moveTo(0);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos--;
+   
   }
-  if (digitalRead(g_button) < 1) {
-    digitalWrite(g_out, HIGH);
-  } else {
-    digitalWrite(g_out, LOW);
+
+  // Move down another increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+
+  // Repeat the process until reaching the desired y sweep distance
+  // You may need to adjust this condition based on your specific requirements
+  if (yPos < Y_SWEEP_DISTANCE) {
+    // Reset stepperX position for next sweep
+    stepperX.setCurrentPosition(0);
   }
-  if (digitalRead(b_button) < 1) {
-    digitalWrite(b_out, HIGH);
-  } else {
-    digitalWrite(b_out, LOW);
-  }
+
+    
+}
+
+float readUltrasonicSensor() {
+  // Trigger the ultrasonic sensor
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+
+  // Measure the duration of the echo pulse
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+
+  // Convert the duration to distance (in centimeters)
+  float distance = duration * 0.034 / 2;
+
+  return distance;
+
+
+}
+
 </code></pre>
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <img src="mvp1.jpeg" alt="an Arduino and breadboard wired up with multiple buttons, resistors, and an LED">
-  <img src="mvp2.jpeg" alt="another angle of the same circuit">
-</div>
-<p class="caption">The completed MVP circuit. I color-coded my wires to match the appropriate
-  color channels of the LED.
-</p>
+This code is kind of a Frankenstein of a lot of other people's questions, suggestions, and my own attempts. I'm not a super strong coder, but I figured this would be enough to give me a working start when I got back to Cambridge. 
 
-I knew I wanted to define a `MacroButton` class to hold the functionality of the macro
-keys (checking whether they've been pressed, storing their macro sequences, running
-their macro sequences, etc.), so I defined that class first. I had to go back to the
-documentation and check a lot of the syntax for programming in C++, especially since
-I'm used to languages with variable-length lists instead of fixed arrays. Because
-I had to use fixed arrays to hold the macros, I decided to cap the macro sequence
-lengths at 20 key presses, although that value might get raised later.
+Ultimately it was a good jumping off point, but figuring out the circuitry to run two stepper motors addimitedly took me a pretty long time. There were some issues where I had to solder a new 12V power supply because the one I had was not working, and even then it took me a while to figure out how to use the stepper motor drivers (I used 2 A4988's).
 
-In the `loop` function, I added logic to trigger a while loop when the program button
-was pressed, so that the Arduino would start listening to and recording key presses
-until the program key was pressed again. I also had to add logic to check which macro
-key was being programmed. Then, I added a loop to call the `run` method of any
-macro buttons that had been pressed. (Even though I only had one macro button at this
-point, I was programming everything as if I had several macro keys stored in an array,
-for ease of adding additional buttons later.)
-
-<pre><code style="background-color: #2d2b33;">
-  // define a class for our macro buttons
-  class MacroButton{
-  
-    // declare private variables for this class
-    private:
-    int pin; // the control pin to see if this button has been pressed
-    int macro[20]; // the macro sequence
-    int macro_len = 0; // the length of the macro sequence
-  
-    // constructor
-    public:
-    MacroButton(int read_pin){
-      pin = read_pin;
-      pinMode(pin, INPUT_PULLUP);
-    }
-  
-    // bool isPressed(): checks if this button has been pressed.
-    // returns "true" if pressed and "false" otherwise
-    bool isPressed(){
-      ...
-    };
-  
-    // int assign(): takes a sequence of pin values and a sequence length
-    // and saves them to this macro button. Returns the macro sequence
-    // for error checking
-    int assign(int sequence[], int len) {
-      ...
-    };
-  
-    // int get_len(): returns the length of this button's macro sequence
-    int get_len() {
-      return macro_len;
-    };
-  
-    // int get_macro(): returns this button's macro sequence
-    int get_macro() {
-      return macro;
-    };
-  
-    // void run(): loops through the pin values in this button's macro
-    // sequence and one-by-one sets them to "HIGH"
-    void run() {
-      ...
-    };
-  };
-
-  ...
-
-  // in the loop function:
-  // check if any macro buttons have been triggered
-    for (int i = 0; i < num_macros; i++) {
-      if (macro_buttons[i].isPressed()) {
-        Serial.print("run macro ");
-        Serial.println(i);
-        macro_buttons[i].run();
-      }
-    }
-</code></pre>
-
-At this point, with most of the basic logic implemented, I started to run into problems.
-
-First, I figured out that the high clock speeds on the Arduino meant I had
-to separate code out into separate functions and add `delay` commands to make sure
-the Arduino would actually wait for key presses before continuing, and that key
-presses would only register once instead of multiple times.
-
-I also realized that the macro sequences weren't being properly assigned to the
-macro keys. This was a tricky issue to figure out, but Bobby helped me eventually
-discover that when I was passing the macro key to be programmed into the function
-that would program it, the program was essentially passing a *copy* of the button
-instead of the button itself, and so the sequence wasn't being saved. We fixed this
-by adding an ampersand in the input definition of the programming function so that
-it would edit the actual button that was passed in.
-
-With that, the keyboard started working as expected! The complete final code, with
-explanatory comments, can be downloaded at the top of this page. Here's a video of
-the macro functionality, using the RGB LED:
+But eventually I was able to get one of the motors running, and then adding one more to the circuit wasn't too hard.
 
 <p class="margin">   </p>
 <div class="flexrow">
   <video controls>
-    <source src="./mvp_demo.mov" type="video/mp4">
+    <source src="./mvp_turning.mov" type="video/mp4">
   </video>
   </div>
-<p class="caption">The working MVP!</p>
+<p class="caption">It works kinda!!
+</p>
+
+Once I was able to get the motors attached to the circuit, I added the sensor and at this point I was pretty sure it was working. When I would run the code, I'd hear the little clicking from the sensor which told me it was recording data, and then I would also see the X direction motor do a full distance sweep (I set it to be 10 steps for the sake of checking that it was working) and then every 10th step by the X motor, the Y motor would do one step. Then the X motor would go back the otherway another 10 steps and the process would repeat. So it seemed like things were doing what I wanted. 
+
+Next I added some code to create arrays of the position and z distance... I'm not sure if arrays were the best way to do this, but coming from my limited knowledge of coding, it seemed like an ok try
+
+
+<pre><code style="background-color: #2d2b33;">
+ 
+#include <AccelStepper.h>
+
+// Define the number of steps per revolution for each motor
+#define STEPS_PER_REV 200
+
+// Define the pins connected to the stepper motor drivers
+#define X_STEP_PIN 13
+#define X_DIR_PIN 12
+#define Y_STEP_PIN 4
+#define Y_DIR_PIN 5
+
+// Define the distance to move along each axis for one sweep
+#define X_SWEEP_DISTANCE 200
+#define Y_SWEEP_DISTANCE 1  
+
+// Define initial position
+#define INITIAL_X_POS 0
+#define INITIAL_Y_POS 0
+
+// Define ultrasonic sensor pins
+#define TRIGGER_PIN 6
+#define ECHO_PIN 7
+
+// Initialize the stepper motors
+AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
+AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
+
+// Initialize position variables
+int xPos = INITIAL_X_POS;
+int yPos = INITIAL_Y_POS;
+
+// Define arrays to store coordinates
+#define MAX_COORDINATES 100 // Adjust as needed
+float xCoordinates[MAX_COORDINATES];
+float yCoordinates[MAX_COORDINATES];
+float zDistances[MAX_COORDINATES];
+int currentIndex = 0;
+
+void setup() {
+  // Set up the ultrasonic sensor pins
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  Serial.begin(9600);
+
+  // Set the maximum speed and acceleration for each motor
+  stepperX.setMaxSpeed(100); // Adjust as needed
+  stepperX.setAcceleration(100); // Adjust as needed
+  stepperY.setMaxSpeed(100); // Adjust as needed
+  stepperY.setAcceleration(100); // Adjust as needed
+}
+
+void loop() {
+
+  // Sweep along the x-axis
+  stepperX.moveTo(X_SWEEP_DISTANCE);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos++;
+    // Read data from the ultrasonic sensor
+    float distanceZ = readUltrasonicSensor();
+    // Store the coordinates and distance
+    xCoordinates[currentIndex] = xPos;
+    yCoordinates[currentIndex] = yPos;
+    zDistances[currentIndex] = distanceZ;
+    currentIndex++;
+  }
+
+  // Move down a small increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+  // Sweep along the x-axis in the opposite direction
+  stepperX.moveTo(0);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos--;
+    // Read data from the ultrasonic sensor
+    float distanceZ = readUltrasonicSensor();
+    // Store the coordinates and distance
+    xCoordinates[currentIndex] = xPos;
+    yCoordinates[currentIndex] = yPos;
+    zDistances[currentIndex] = distanceZ;
+    currentIndex++;
+  }
+
+  // Move down another increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+
+
+  // Repeat the process until reaching the desired y sweep distance
+  // You may need to adjust this condition based on your specific requirements
+  if (yPos < Y_SWEEP_DISTANCE) {
+    // Reset stepperX position for next sweep
+    stepperX.setCurrentPosition(0);
+  }
+
+    
+}
+
+float readUltrasonicSensor() {
+  // Trigger the ultrasonic sensor
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+
+  // Measure the duration of the echo pulse
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+
+  // Convert the duration to distance (in centimeters)
+  float distance = duration * 0.034 / 2;
+
+  return distance;
+
+
+}
+
+</code></pre>
+
+Now I'm pretty sure the machine was recording where the sensor would be as well as the data it would be picking up.. The problem was I wasn't sure how to actually view the arrays... I tried a lot of things here. The most promising method (after consulting with Bobby and the internet) was to serial print the arrays using a for loop over each array. I already had a variable "currentIndex" defined which should have been the lenght of the three arrays at any given time, so I used that to write a little code that I added:
+
+<pre><code style="background-color: #2d2b33;">
+
+  #include <AccelStepper.h>
+
+// Define the number of steps per revolution for each motor
+#define STEPS_PER_REV 200
+
+// Define the pins connected to the stepper motor drivers
+#define X_STEP_PIN 13
+#define X_DIR_PIN 12
+#define Y_STEP_PIN 4
+#define Y_DIR_PIN 5
+
+// Define the distance to move along each axis for one sweep
+#define X_SWEEP_DISTANCE 200
+#define Y_SWEEP_DISTANCE 1  
+
+// Define initial position
+#define INITIAL_X_POS 0
+#define INITIAL_Y_POS 0
+
+// Define ultrasonic sensor pins
+#define TRIGGER_PIN 6
+#define ECHO_PIN 7
+
+// Initialize the stepper motors
+AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
+AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
+
+// Initialize position variables
+int xPos = INITIAL_X_POS;
+int yPos = INITIAL_Y_POS;
+
+// Define arrays to store coordinates
+#define MAX_COORDINATES 100 // Adjust as needed
+float xCoordinates[MAX_COORDINATES];
+float yCoordinates[MAX_COORDINATES];
+float zDistances[MAX_COORDINATES];
+int currentIndex = 0;
+
+void setup() {
+  // Set up the ultrasonic sensor pins
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  Serial.begin(9600);
+
+  // Set the maximum speed and acceleration for each motor
+  stepperX.setMaxSpeed(100); // Adjust as needed
+  stepperX.setAcceleration(100); // Adjust as needed
+  stepperY.setMaxSpeed(100); // Adjust as needed
+  stepperY.setAcceleration(100); // Adjust as needed
+}
+
+void loop() {
+
+  // Sweep along the x-axis
+  stepperX.moveTo(X_SWEEP_DISTANCE);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos++;
+    // Read data from the ultrasonic sensor
+    float distanceZ = readUltrasonicSensor();
+    // Store the coordinates and distance
+    xCoordinates[currentIndex] = xPos;
+    yCoordinates[currentIndex] = yPos;
+    zDistances[currentIndex] = distanceZ;
+    currentIndex++;
+  }
+
+  // Move down a small increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+  // Sweep along the x-axis in the opposite direction
+  stepperX.moveTo(0);
+  while (stepperX.distanceToGo() != 0) {
+    stepperX.run();
+    xPos--;
+    // Read data from the ultrasonic sensor
+    float distanceZ = readUltrasonicSensor();
+    // Store the coordinates and distance
+    xCoordinates[currentIndex] = xPos;
+    yCoordinates[currentIndex] = yPos;
+    zDistances[currentIndex] = distanceZ;
+    currentIndex++;
+  }
+
+  // Move down another increment in the y direction
+  stepperY.move(Y_SWEEP_DISTANCE);
+  stepperY.runToPosition();
+  yPos++;
+
+
+for (int i = 0; i < 10 ; i++) {
+  Serial.print(xCoordinates[i]);
+  Serial.print(",");
+  Serial.print(yCoordinates[i]);
+  Serial.print(",");
+  Serial.print(zDistances[i]);
+  Serial.print("\n"); // Tab character to separate data points
+}
+  
+Serial.println(); // Newline to mark the end of the batch
+
+  // Repeat the process until reaching the desired y sweep distance
+  // You may need to adjust this condition based on your specific requirements
+  if (yPos < Y_SWEEP_DISTANCE) {
+    // Reset stepperX position for next sweep
+    stepperX.setCurrentPosition(0);
+  }
+
+    
+}
+
+float readUltrasonicSensor() {
+  // Trigger the ultrasonic sensor
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+
+  // Measure the duration of the echo pulse
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+
+  // Convert the duration to distance (in centimeters)
+  float distance = duration * 0.034 / 2;
+
+  return distance;
+
+</code></pre>
+
+But the problem I am currently facing is that I think the amount of memory reading out these arrays takes is just... way to much. I can get the serial monitor to show other things like "Hello World." But I think maybe I might just be asking it to print too many things all at once and so it's getting overwhelmed and angry at me. I'm actually pretty confident that I'm creating the arrays I want to make with this code, but accessing them is kind of the hard part from here. 
+
+At first, when I tried to run the code, it wouldn't do it at all because it said that just taking all of those points of data was using too much memory. I streamlined things a bit along the way to the point where now it will run the code and the motors will move and the sensor will come on without a hitch, it just really doesn't want to print what I ask it too. 
+
+
+<p class="margin">   </p>
+<div class="flexrow">
+  <img src="circuitry_1.jpeg" alt="an Arduino circuit with a 2 stepper motors">
+  <img src="circuitry_1.jpeg" alt="another shot">
+</div>
+<p class="caption">Picture of the circuitry.</p>
 
 </div>
 </xmp>
