@@ -35,65 +35,33 @@
 
 <h4>Assignment: Program a Microcontroller</h4>
 
-This week, I worked with Adelaide to program a mincrocontroller over the internet
-using a local LAN website. Our idea was to have a web interface where you could
-tell the microcontroller to play a variety of songs on a connected piezo buzzer.
-Adelaide was becoming an expert at using piezo buzzers with Arduino, because that
-was an important part of her final project, and I focused more on the WiFi logistics.
-Our first task was to set up a basic circuit with an Arduino ESP32 going to
-a piezoelectric buzzer; we just connected the buzzer to ground and to an Arduino pin
-that works for digital output.
+This week, I worked with  <a href=”https://kirafagerstrom.github.io/ps70/09_networking/index.html”>Kira</a> and Kyra (easy names to remember) on connecting an ESP32 to a remote-database using firebase. The project we decided to make was a very simple version of Whac-A-Mole that would keep track of player scores!
 
 <p class="margin">   </p>
 <div class="flexrow">
-  <img src="buzzer_circuit_1.png" alt="a photo of an Arduino attached to a piezo buzzer">
-  <img src="buzzer_circuit_2.png" alt="another photo of the same circuit">
-</div>
-<p class="caption">The buzzer circuit setup.</p>
 
-For the code, we started off with the Arduino example sketch for a simple WiFi
-server to make sure things were working. Instead of translating songs into
-frequencies ourselves, we decided to go online and see what songs we could find
-already adapted for Arduino. We found a version of the theme from <em>Game of Thrones</em>,
-so we combined that code into the Wifi sketch and added a button on the website
-to play it. To test our work, we connected the buzzer circuit to my computer with the
-Arduino code and accessed the LAN website from Adelaide's computer.
+<h5>Setting up Firebase</h5>
+The first thing we tackled was setting up a remote database for the project using Firebase. We followed this tutorial on RandomNerd to help us with that. It was pretty simple beyond the generic setup because all we needed to store was a score nested in a node for each player. The Arduino IDE code (included in full code below) from the RandomNerd tutorial sent a float and random integer from the ESP to the database every 15 seconds, and we tested our connections/circuit by manually changing database values to see if they were reflected in the Arduino IDE serial monitor. It worked! 
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <img src="buzzer_setup.png" alt="a photo of the circuit from above plus a computer showing code and another showing a simple website.">
-</div>
-<p class="caption">The buzzer circuit connected to my computer while Adelaide's computer talks to the LAN website.</p>
+<h5>Making a website interface</h5>
+We used <a href=”https://nathanmelenbrink.github.io/ps70/09_networking/index.html”>Nathan’s html code</a> to create an web interface that would display the Whackamole score for each player. We modified the basic setup code slightly to add references to the Player 1 and Player 2 scores in the Firebase RTDB, and event listeners to automatically update scores as the game continues (using the document.getElementById function). Kyra added a super cute pair of moles and formatting.
+INSERT HTML CODE HERE
 
-We wanted to add another song for the buzzer to play, but we wanted to have some
-fun with it, so we found another sketch online that had transcribed "Never Gonna
-Give You Up" by Rick Astley and integrated that into our code. This was a little bit
-tricky, because the two songs were written with different logic, but we managed to
-reverse-engineer the code and slot in the necessary portions while avoiding unnecessary
-repetition.
+<a href="https://k-ra.github.io/twomolewhackamole/">Here is the link to the web interface</a>
 
-As you can see from the photo of the interface below, we tried to add a button
-to make the buzzer stop playing music, but between the loop code for the WiFi
-server and the loop code to play the music, we couldn't get it to work, so we
-scrapped that idea.
+<h5>Programming the ESP32</h5>
+We ended up with a fairly simple circuit containing 2 buttons, 2 LEDs with one 1kOhm resistor each, and an ESP32 Wroom on a LOLIN32 board. 
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <img src="initial_LAN_interface.png" alt="a photo of a basic website with three lines of text">
-</div>
-<p class="caption">The initial interface, with buttons for the two songs and a (broken) 'stop' button.</p>
 
-Once this was working, we decided to make it a little funnier by duplicating our
-"play a song" buttons so that it would look like the Arduino could play a bunch of
-different songs, but actually every button (save one) would be a Rickroll. We also
-added emoticons to each line, just for fun. I had a great time working with Adelaide
-on this project, and I think we did a good job of complementing each other's strengths!
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <img src="final_LAN_interface.png" alt="a photo of a basic website with several lines of text">
-</div>
-<p class="caption">The final interface, with a whole bunch of buttons that (mostly) are just Rickrolls. Which one do you think is the <em>Game of Thrones</em> theme?</p>
+Here are the pin and LED connections to the ESP32 board (pins must have digital write and digital read capacity/both input and output).
+Player 1: Button 1 (pin 33) and LED 1(pin 32)
+Player 2: Button 2 (pin 26) and LED2 (pin 25)
+
+We modified the code from the earlier RandomNerd tutorial so the Firebase configuration is the same, but we added variables for the buttons, LEDs, scores, players, and LEDonTime in the setup, and programmed the game according to the following logic: turn the LEDs on at a random time, record the amount of time between the LED turning on and the button press, and convert that into a score.
+
+
+
 
 
 </div>
