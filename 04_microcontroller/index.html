@@ -9,7 +9,7 @@
 <nav class="navbar navbar-expand-sm navbar-dark" style="background-color: #130F1D; color: #EEE7E8;">
   <div style="align-items: center; justify-content: center;" class="container-fluid">
     <div class="flexrow">
-      <h2 class="nav-title">PS70 // Intro to Digital Fabrication // F23</h2>
+      <h2 class="nav-title">PS70 // Intro to Digital Fabrication // S24</h2>
     </div>
     <div class="navbar-nav">
       <h4><a class="nav-link" href="../index.html">Home</a></h4>
@@ -34,81 +34,77 @@
 
 <h4>Assignment: Make an Arduino Do Something</h4>
 
-For this week, I wanted to have my Arduino control the movement of my kinetic
-sculpture. First, I had to make some edits to my sculpture so that it would
-actually work. This entailed modifying the gears to attach them to the motor and
-the rest of the sculpture and fabricating a new stand to mount the sculpture on.
+For this assignment, I’ll fix up the kinetic hand sculpture and make it run using an arduino code that controls a stepper motor. First things first, to address the big problem with the sculpture, the movement it makes is incredibly small and not noticeable. The way I want to improve this is by adding a wheel with a longer radius to the axle of the motor so that when it turns, the motion it induces is larger. Here’s the wheel I modeled:
+
 
 <p class="margin">   </p>
 <div class="flexrow">
-  <img src="./newbase.png" alt="a 3D model of a disassembled cardboard stand">
+  <img src="week4cuts2.png" alt="a 3D model of a disassembled cardboard stand">
 </div>
-<p class="caption">The re-designed cardboard stand, including notches at the bottom for a shelf to hold the motor.</p>
+<p class="caption">Wheel to extend the radius of the motor.</p>
 
-Once those were printed and assembled, I was able to test the sculpture with my
-motor. I ran into some problems with friction -- at first, I had tightened the
-various axles and hinges of my sculpture too much, so the motor couldn't turn the
-gears at all. Next, the shelf I had made for the motor to sit in was causing friction
-and preventing the motor from turning. Once I fixed both of those problems, I found
-another issue, which was that I was having trouble fixing the center axle to
-the center gear on the far side, so the motor was only turning one side of the
-sculpture. I decided to leave that problem for another day, and focused on getting
-the motor to work with one side of the sculpture. Eventually, I succeeded, although
-I had to hold the motor in place:
+Once I put it on the axle, I attached the strings and gave it a try just cranking myself. The movement was much more noticeable which was good news! Next I wrote up a very simple stepper motor code that would turn the motor one way, stop and then turn it the other way (I figured this was the best way to not get the strings all tangled up which was another problem I had during week 3). I used the stepper library and here’s the code I came up with:
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <img src="./panthergif.gif" alt="a cardboard panther that looks like it's running">
-</div>
-<p class="caption">It lives!</p>
 
-Now I could add in the Arduino part. I hooked up a simple circuit with my Arduino
-Uno, my motor, a motor controller, and a few wires, and wrote a simple program to
-supply power to the motor:
+
 
 <pre><code style="background-color: #2d2b33;">
-  const int A1A = 3;  // define pin 3 for A-1A 
-  const int A1B = 5;  // define pin 4 for A-1B 
+ #include <Stepper.h>
 
-  void setup() {
-    pinMode(A1A, OUTPUT);     // specify these pins as outputs
-    pinMode(A1B, OUTPUT);
-    digitalWrite(A1A, LOW);   // start with the motors off 
-    digitalWrite(A1B, LOW);
-  }
 
-  void loop() {
-    // start the motor 
-    digitalWrite(A1A, HIGH);   
-    digitalWrite(A1B, LOW);
-  }
+const int stepsPerRevolution = 1000;
+const int dirPin = 6;
+const int stepPin = 5;
+
+
+Stepper myStepper(stepsPerRevolution, dirPin, stepPin);
+
+
+void setup() {
+  // Set the speed of the stepper motor
+  myStepper.setSpeed(60);  // 60 RPM
+}
+
+
+void loop() {
+  // Turn one direction for 2 revolutions
+  myStepper.step(stepsPerRevolution * 2);
+  delay(1000);  
+ 
+  // Change direction
+  digitalWrite(dirPin, !digitalRead(dirPin)); // Toggle direction
+ 
+  // Turn the other direction for 2 revolutions
+  myStepper.step(-stepsPerRevolution * 2);
+  delay(1000);  
+}
+
 </code></pre>
 
-I figured out that I had to reverse the direction of the motor to make the panther's
-running motion go the right way, so I flipped pin A1-B to do that and then also
-added some delay functions to create a pattern of motion. Here's a video of the
-result:
+As far as the circuitry, because I did this project after having done basically everything else in the course, I was really familiar with how to use a stepper motor and particularly an A4988 driver. The circuit is forever ingrained in my mind and I can make one in my sleep:
+
+<p class="margin">   </p>
+<div class="flexrow">
+  <img src="week4circuit.jpg" alt="a 3D model of a disassembled cardboard stand">
+</div>
+<p class="caption"> I have this image burned in my mind…
+</p>
+
+With everything coded and wired, here’s how the sculpture moved:
+
 
 <p class="margin">   </p>
 <div class="flexrow">
   <video controls>
-    <source src="./panther-vid.mov" type="video/mp4">
+    <source src="week4video.mp4" type="video/mp4">
   </video>
   </div>
-<p class="caption">The panther running on a timed delay.</p>
+<p class="caption">It moves!!</p>
 
-Lastly, I went back and added a potentiometer to my circuit to adjust the speed
-the panther runs at. The motor is still not held in place well, so if I were to
-come back to this design I would rethink the motor housing so it doesn't have to
-be held in place.
+One thing I noticed is that I had to clamp the pedestal down and hold the motor far away otherwise it would just move the sculpture and motor together until there was slack in the string, but as someone with very next to no ambition in the kinetic sculpture making industry, I am quite happy with this. 
 
-<p class="margin">   </p>
-<div class="flexrow">
-  <video controls>
-    <source src="panther_nice.mov" type="video/mp4">
-  </video>
-  </div>
-<p class="caption">The final result (so far).</p>
+
+
 
 </div>
 </xmp>
