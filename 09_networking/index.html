@@ -42,25 +42,6 @@ This week, I worked with  <a href=”https://kirafagerstrom.github.io/ps70/09_ne
 <p class="margin">   </p>
 <div class="flexrow">
 
-<h5>Setting up Firebase</h5>
-The first thing we tackled was setting up a remote database for the project using Firebase. We followed this tutorial on RandomNerd to help us with that. It was pretty simple beyond the generic setup because all we needed to store was a score nested in a node for each player. The Arduino IDE code (included in full code below) from the RandomNerd tutorial sent a float and random integer from the ESP to the database every 15 seconds, and we tested our connections/circuit by manually changing database values to see if they were reflected in the Arduino IDE serial monitor. It worked! 
-
-<h5>Making a website interface</h5>
-We used <a href=”https://nathanmelenbrink.github.io/ps70/09_networking/index.html”>Nathan’s html code</a> to create an web interface that would display the Whackamole score for each player. We modified the basic setup code slightly to add references to the Player 1 and Player 2 scores in the Firebase RTDB, and event listeners to automatically update scores as the game continues (using the document.getElementById function). Kyra added a super cute pair of moles and formatting.
-INSERT HTML CODE HERE
-
-<a href="https://k-ra.github.io/twomolewhackamole/">Here is the link to the web interface</a>
-
-<h5>Programming the ESP32</h5>
-We ended up with a fairly simple circuit containing 2 buttons, 2 LEDs with one 1kOhm resistor each, and an ESP32 Wroom on a LOLIN32 board. 
-
-
-
-Here are the pin and LED connections to the ESP32 board (pins must have digital write and digital read capacity/both input and output).
-Player 1: Button 1 (pin 33) and LED 1(pin 32)
-Player 2: Button 2 (pin 26) and LED2 (pin 25)
-
-We modified the code from the earlier RandomNerd tutorial so the Firebase configuration is the same, but we added variables for the buttons, LEDs, scores, players, and LEDonTime in the setup, and programmed the game according to the following logic: turn the LEDs on at a random time, record the amount of time between the LED turning on and the button press, and convert that into a score.
 
 
 
