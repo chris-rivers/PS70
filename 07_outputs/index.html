@@ -34,214 +34,90 @@
 
 <h4>Assignment: Minimum Viable Product for Final Project</h4>
 
-My final project is going to be a "drawing machine" of sorts, that scans objects in 3D and translates them to 2D coordinates it can draw. Particularly I'm interested in translating things to curvilinear coordinates (such that they appear to be projected on a lens or sphere).
+In my mind, by far the most challenging part of this project will be the coding. I can’t code and I hate doing it. So for my MVP I thought I’d try to write some code that would control two stepper motors and an ultrasonic sensor at once. Specifically I wanted the code to control the stepper motors such that the y axis motor would move a small increment and then the x motor would sweep across the entire axis (then the process would repeat), as well as having the code record where it thought it’s position was at all times, storing values from the ultrasonic sensor at every step of the way. This proved to be… challenging. 
 
-The way the machine will work is by having an arm with an ultrasonic sensor sweep across the x and y planes recording it's position at each step while the sensor itself records the z direction in front of it. I decided in class that the movement along the x and y axes ought to be controlled using stepper motors, and I'd already played around enough with the ultrasonic sensor to have a decent idea of how to use it. 
-
-The main thing I was concerned about was writing code that would allow the machine to know where the sensor was at any given point and to (after completeing a full scan from an inital (0,0) to (Max_x, Max_y)) return three arrays with x, y, and z coordinates throughout the scan. Over the course of the spring break I came up with some code that would hopefully do just that. 
-
-A really nifty thing I stumbled upon in the lab was a broken 3D printer which I happily claimed the scraps of for my project. The things I salvaged from it were the stepper motors (which there were like 4 of) and their appropriate wiring (which would have been a real pain to strip and keep track of on my own), and the tracks, which I didn't end up using for my mvp, but I do intend to incorporate or at least use the design of for the finished project. (The 3D printer is already a multi-axis stepper motor system, so reusing as much of it as possible is a huge W). 
-
-<pre><code style="background-color: #2d2b33;">
- #include <AccelStepper.h>
-
-// Define the number of steps per revolution for each motor
-#define STEPS_PER_REV 200
-
-// Define the pins connected to the stepper motor drivers
-#define X_STEP_PIN 13
-#define X_DIR_PIN 12
-#define Y_STEP_PIN 4
-#define Y_DIR_PIN 5
-
-// Define the distance to move along each axis for one sweep
-#define X_SWEEP_DISTANCE 200
-#define Y_SWEEP_DISTANCE 1  
-
-// Define initial position
-#define INITIAL_X_POS 0
-#define INITIAL_Y_POS 0
-
-// Define ultrasonic sensor pins
-#define TRIGGER_PIN 6
-#define ECHO_PIN 7
-
-// Initialize the stepper motors
-AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
-AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
-
-// Initialize position variables
-int xPos = INITIAL_X_POS;
-int yPos = INITIAL_Y_POS;
-
-
-void setup() {
-  // Set up the ultrasonic sensor pins
-  pinMode(TRIGGER_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  
-  Serial.begin(9600);
-
-  // Set the maximum speed and acceleration for each motor
-  stepperX.setMaxSpeed(100); // Adjust as needed
-  stepperX.setAcceleration(100); // Adjust as needed
-  stepperY.setMaxSpeed(100); // Adjust as needed
-  stepperY.setAcceleration(100); // Adjust as needed
-}
-
-void loop() {
-
-  // Sweep along the x-axis
-  stepperX.moveTo(X_SWEEP_DISTANCE);
-  while (stepperX.distanceToGo() != 0) {
-    stepperX.run();
-    xPos++;
-   
-
-  // Move down a small increment in the y direction
-  stepperY.move(Y_SWEEP_DISTANCE);
-  stepperY.runToPosition();
-  yPos++;
-
-  // Sweep along the x-axis in the opposite direction
-  stepperX.moveTo(0);
-  while (stepperX.distanceToGo() != 0) {
-    stepperX.run();
-    xPos--;
-   
-  }
-
-  // Move down another increment in the y direction
-  stepperY.move(Y_SWEEP_DISTANCE);
-  stepperY.runToPosition();
-  yPos++;
-
-
-  // Repeat the process until reaching the desired y sweep distance
-  // You may need to adjust this condition based on your specific requirements
-  if (yPos < Y_SWEEP_DISTANCE) {
-    // Reset stepperX position for next sweep
-    stepperX.setCurrentPosition(0);
-  }
-
-    
-}
-
-float readUltrasonicSensor() {
-  // Trigger the ultrasonic sensor
-  digitalWrite(TRIGGER_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIGGER_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIGGER_PIN, LOW);
-
-  // Measure the duration of the echo pulse
-  unsigned long duration = pulseIn(ECHO_PIN, HIGH);
-
-  // Convert the duration to distance (in centimeters)
-  float distance = duration * 0.034 / 2;
-
-  return distance;
-
-
-}
-
-</code></pre>
-
-This code is kind of a Frankenstein of a lot of other people's questions, suggestions, and my own attempts. I'm not a super strong coder, but I figured this would be enough to give me a working start when I got back to Cambridge. 
-
-Ultimately it was a good jumping off point, but figuring out the circuitry to run two stepper motors addimitedly took me a pretty long time. There were some issues where I had to solder a new 12V power supply because the one I had was not working, and even then it took me a while to figure out how to use the stepper motor drivers (I used 2 A4988's).
-
-But eventually I was able to get one of the motors running, and then adding one more to the circuit wasn't too hard.
+The less challenging part was the circuitry. I just followed the A4988 wiring and attached two stepper motors in a series to my arduino on a breadboard. Then I plugged the ultrasonic sensor directly into the arduino. At this point, assuming I can get this code to do what I want, I have my final project, just without the body it lives in.
 
 <p class="margin">   </p>
 <div class="flexrow">
-  <video controls>
-    <source src="mvp_turning.mov" type="video/mp4">
-  </video>
-  </div>
-<p class="caption">It works kinda!!
-</p>
-
-Once I was able to get the motors attached to the circuit, I added the sensor and at this point I was pretty sure it was working. When I would run the code, I'd hear the little clicking from the sensor which told me it was recording data, and then I would also see the X direction motor do a full distance sweep (I set it to be 10 steps for the sake of checking that it was working) and then every 10th step by the X motor, the Y motor would do one step. Then the X motor would go back the otherway another 10 steps and the process would repeat. So it seemed like things were doing what I wanted. 
-
-Next I added some code to create arrays of the position and z distance... I'm not sure if arrays were the best way to do this, but coming from my limited knowledge of coding, it seemed like an ok try
-
+  <img src="mvp1.jpg">
+  <img src="mvp2.jpg">
+</div>
+<p class="caption">It just doesn't have a body...</p>
 
 <pre><code style="background-color: #2d2b33;">
- 
+
+
 #include <AccelStepper.h>
+
 
 // Define the number of steps per revolution for each motor
 #define STEPS_PER_REV 200
 
+
 // Define the pins connected to the stepper motor drivers
-#define X_STEP_PIN 13
-#define X_DIR_PIN 12
-#define Y_STEP_PIN 4
-#define Y_DIR_PIN 5
+#define X_STEP_PIN 2
+#define X_DIR_PIN 3
+#define Y_STEP_PIN 5
+#define Y_DIR_PIN 6
+
 
 // Define the distance to move along each axis for one sweep
-#define X_SWEEP_DISTANCE 200
-#define Y_SWEEP_DISTANCE 1  
+#define X_SWEEP_DISTANCE 100 // Adjust as needed
+#define Y_SWEEP_DISTANCE 1  // Adjust as needed
+
 
 // Define initial position
 #define INITIAL_X_POS 0
 #define INITIAL_Y_POS 0
 
+
 // Define ultrasonic sensor pins
 #define TRIGGER_PIN 6
 #define ECHO_PIN 7
+
 
 // Initialize the stepper motors
 AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
 AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
 
+
 // Initialize position variables
 int xPos = INITIAL_X_POS;
 int yPos = INITIAL_Y_POS;
 
-// Define arrays to store coordinates
-#define MAX_COORDINATES 100 // Adjust as needed
-float xCoordinates[MAX_COORDINATES];
-float yCoordinates[MAX_COORDINATES];
-float zDistances[MAX_COORDINATES];
-int currentIndex = 0;
 
 void setup() {
   // Set up the ultrasonic sensor pins
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  
-  Serial.begin(9600);
 
-  // Set the maximum speed and acceleration for each motor
-  stepperX.setMaxSpeed(100); // Adjust as needed
-  stepperX.setAcceleration(100); // Adjust as needed
-  stepperY.setMaxSpeed(100); // Adjust as needed
-  stepperY.setAcceleration(100); // Adjust as needed
-}
+
+//   // Set the maximum speed and acceleration for each motor
+//   stepperX.setMaxSpeed(1000); // Adjust as needed
+//   stepperX.setAcceleration(500); // Adjust as needed
+//   stepperY.setMaxSpeed(1000); // Adjust as needed
+//   stepperY.setAcceleration(500); // Adjust as needed
+// }
+
 
 void loop() {
+  // // Sweep along the x-axis
+  // stepperX.moveTo(X_SWEEP_DISTANCE);
+  // while (stepperX.distanceToGo() != 0) {
+  //   stepperX.run();
+  //   xPos++;
+  //   // Read data from the ultrasonic sensor
+  //   float distanceZ = readUltrasonicSensor();
+  //   // Store or process the distance data here
+  // }
 
-  // Sweep along the x-axis
-  stepperX.moveTo(X_SWEEP_DISTANCE);
-  while (stepperX.distanceToGo() != 0) {
-    stepperX.run();
-    xPos++;
-    // Read data from the ultrasonic sensor
-    float distanceZ = readUltrasonicSensor();
-    // Store the coordinates and distance
-    xCoordinates[currentIndex] = xPos;
-    yCoordinates[currentIndex] = yPos;
-    zDistances[currentIndex] = distanceZ;
-    currentIndex++;
-  }
 
   // Move down a small increment in the y direction
   stepperY.move(Y_SWEEP_DISTANCE);
   stepperY.runToPosition();
   yPos++;
+
 
   // Sweep along the x-axis in the opposite direction
   stepperX.moveTo(0);
@@ -250,18 +126,14 @@ void loop() {
     xPos--;
     // Read data from the ultrasonic sensor
     float distanceZ = readUltrasonicSensor();
-    // Store the coordinates and distance
-    xCoordinates[currentIndex] = xPos;
-    yCoordinates[currentIndex] = yPos;
-    zDistances[currentIndex] = distanceZ;
-    currentIndex++;
+    // Store or process the distance data here
   }
+
 
   // Move down another increment in the y direction
   stepperY.move(Y_SWEEP_DISTANCE);
   stepperY.runToPosition();
   yPos++;
-
 
 
   // Repeat the process until reaching the desired y sweep distance
@@ -270,9 +142,8 @@ void loop() {
     // Reset stepperX position for next sweep
     stepperX.setCurrentPosition(0);
   }
-
-    
 }
+
 
 float readUltrasonicSensor() {
   // Trigger the ultrasonic sensor
@@ -282,68 +153,81 @@ float readUltrasonicSensor() {
   delayMicroseconds(10);
   digitalWrite(TRIGGER_PIN, LOW);
 
+
   // Measure the duration of the echo pulse
   unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+
 
   // Convert the duration to distance (in centimeters)
   float distance = duration * 0.034 / 2;
 
+
   return distance;
-
-
 }
+
 
 </code></pre>
 
-Now I'm pretty sure the machine was recording where the sensor would be as well as the data it would be picking up.. The problem was I wasn't sure how to actually view the arrays... I tried a lot of things here. The most promising method (after consulting with Bobby and the internet) was to serial print the arrays using a for loop over each array. I already had a variable "currentIndex" defined which should have been the lenght of the three arrays at any given time, so I used that to write a little code that I added:
+I had to download the accelstepper library because it seemed like it would be too much trouble to not do so. Skipping past all the initializing and defining variables, the code starts off by just looping this motion where it moves down Y a very small distance and then sweeps X across the entire axis. 
+
+This was all fine and good, but I wanted the code to return an array of z values. I went back to the drawing board and came up with this modified version of the code:
 
 <pre><code style="background-color: #2d2b33;">
 
-  #include <AccelStepper.h>
+#include <AccelStepper.h>
+
 
 // Define the number of steps per revolution for each motor
 #define STEPS_PER_REV 200
 
+
 // Define the pins connected to the stepper motor drivers
-#define X_STEP_PIN 13
-#define X_DIR_PIN 12
-#define Y_STEP_PIN 4
-#define Y_DIR_PIN 5
+#define X_STEP_PIN 5
+#define X_DIR_PIN 6
+#define Y_STEP_PIN 10
+#define Y_DIR_PIN 11
+
 
 // Define the distance to move along each axis for one sweep
-#define X_SWEEP_DISTANCE 200
-#define Y_SWEEP_DISTANCE 1  
+#define X_SWEEP_DISTANCE 1475.409836  // Adjust as needed
+#define Y_SWEEP_DISTANCE 489.1472872   // Adjust as needed
+
 
 // Define initial position
 #define INITIAL_X_POS 0
 #define INITIAL_Y_POS 0
 
+
 // Define ultrasonic sensor pins
-#define TRIGGER_PIN 6
-#define ECHO_PIN 7
+#define TRIGGER_PIN 3
+#define ECHO_PIN 4
+
 
 // Initialize the stepper motors
 AccelStepper stepperX(AccelStepper::DRIVER, X_STEP_PIN, X_DIR_PIN);
 AccelStepper stepperY(AccelStepper::DRIVER, Y_STEP_PIN, Y_DIR_PIN);
 
+
 // Initialize position variables
 int xPos = INITIAL_X_POS;
 int yPos = INITIAL_Y_POS;
 
+
 // Define arrays to store coordinates
-#define MAX_COORDINATES 100 // Adjust as needed
+#define MAX_COORDINATES 900 // Adjust as needed
 float xCoordinates[MAX_COORDINATES];
 float yCoordinates[MAX_COORDINATES];
 float zDistances[MAX_COORDINATES];
 int currentIndex = 0;
 
+
 void setup() {
   // Set up the ultrasonic sensor pins
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  
+ 
   Serial.begin(9600);
-
+  Serial.println("starting");
   // Set the maximum speed and acceleration for each motor
   stepperX.setMaxSpeed(100); // Adjust as needed
   stepperX.setAcceleration(100); // Adjust as needed
@@ -351,7 +235,9 @@ void setup() {
   stepperY.setAcceleration(100); // Adjust as needed
 }
 
+
 void loop() {
+
 
   // Sweep along the x-axis
   stepperX.moveTo(X_SWEEP_DISTANCE);
@@ -367,10 +253,12 @@ void loop() {
     currentIndex++;
   }
 
+
   // Move down a small increment in the y direction
   stepperY.move(Y_SWEEP_DISTANCE);
   stepperY.runToPosition();
   yPos++;
+
 
   // Sweep along the x-axis in the opposite direction
   stepperX.moveTo(0);
@@ -385,6 +273,9 @@ void loop() {
     zDistances[currentIndex] = distanceZ;
     currentIndex++;
   }
+
+
+
 
   // Move down another increment in the y direction
   stepperY.move(Y_SWEEP_DISTANCE);
@@ -393,6 +284,7 @@ void loop() {
 
 
 for (int i = 0; i < 10 ; i++) {
+  Serial.println("yooo");
   Serial.print(xCoordinates[i]);
   Serial.print(",");
   Serial.print(yCoordinates[i]);
@@ -400,8 +292,9 @@ for (int i = 0; i < 10 ; i++) {
   Serial.print(zDistances[i]);
   Serial.print("\n"); // Tab character to separate data points
 }
-  
+ 
 Serial.println(); // Newline to mark the end of the batch
+
 
   // Repeat the process until reaching the desired y sweep distance
   // You may need to adjust this condition based on your specific requirements
@@ -410,8 +303,10 @@ Serial.println(); // Newline to mark the end of the batch
     stepperX.setCurrentPosition(0);
   }
 
-    
+
+   
 }
+
 
 float readUltrasonicSensor() {
   // Trigger the ultrasonic sensor
@@ -421,27 +316,41 @@ float readUltrasonicSensor() {
   delayMicroseconds(10);
   digitalWrite(TRIGGER_PIN, LOW);
 
+
   // Measure the duration of the echo pulse
   unsigned long duration = pulseIn(ECHO_PIN, HIGH);
+
 
   // Convert the duration to distance (in centimeters)
   float distance = duration * 0.034 / 2;
 
+
   return distance;
+
+
+
+
+
+
+}
 
 </code></pre>
 
-But the problem I am currently facing is that I think the amount of memory reading out these arrays takes is just... way to much. I can get the serial monitor to show other things like "Hello World." But I think maybe I might just be asking it to print too many things all at once and so it's getting overwhelmed and angry at me. I'm actually pretty confident that I'm creating the arrays I want to make with this code, but accessing them is kind of the hard part from here. 
+Which defines 3 arrays one for each coordinate as it sweeps across. This seemed to work but I actually don’t know since the arrays were too large to be printed. Or that’s what I believe happened. In theory they exist but I can’t access them. I think I might have to either find a microcontroller with more computing power, or reduce the number of measurements the code is taking per cycle. 
 
-At first, when I tried to run the code, it wouldn't do it at all because it said that just taking all of those points of data was using too much memory. I streamlined things a bit along the way to the point where now it will run the code and the motors will move and the sensor will come on without a hitch, it just really doesn't want to print what I ask it too. 
+Honestly I was just happy to have something that vaguely moved the way I wanted, which this did. It was rewarding enough for me to be controlling three things with one piece of code.
 
 
 <p class="margin">   </p>
 <div class="flexrow">
-  <img src="circuitry_1.jpeg" alt="an Arduino circuit with a 2 stepper motors">
-  <img src="circuitry_1.jpeg" alt="another shot">
-</div>
-<p class="caption">Picture of the circuitry.</p>
+  <video controls>
+    <source src="mvpvideo.mp4" type="video/mp4">
+  </video>
+  </div>
+<p class="caption">It does something!!
+</p>
+
+
 
 </div>
 </xmp>
